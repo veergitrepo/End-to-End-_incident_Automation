@@ -1,1 +1,36 @@
+- name: Get Open ChangeTasks
+  hosts: localhost
+  gather_facts: no
 
+###################################################################
+# Retrieve all open change tasks from ServiceNow that match the
+# specified criteria.  Loop through the results, invoking the
+# task-specific playbooks to fulfill the tasks  .
+###################################################################
+
+  tasks:
+    # Load initial variables
+    - name: Include global variables
+      include_vars:
+        file: variables_ITS-CHMOD0004368.yml
+
+    # Get open change tasks
+    - name: Query SNow for open tasks for change model [{{ snow_change_model_number }}]
+      include_role:
+        name: servicenow/changetask-get-all-open
+      vars:
+        var_snow_assignment_group: "{{ snow_automation_assignment_group }}"
+        var_snow_assigned_to: ""     #only want unassigned tasks upfront
+        var_snow_change_model_number: "{{ snow_change_model_number }}"
+        var_snow_record_count: -1
+        var_snow_chg_project_number: "{{ snow_change_request_project_number }}"
+
+    - name: Log result count for change model [{{ snow_change_model_number }}]
+      debug:
+        msg: "Found [{{ result_snow_open_changetasks | length }}] open task(s) for change model [{{ snow_change_model_number }}]"
+
+    - name: Loop through results for change model [{{ snow_change_model_number }}]
+      include_tasks: process-open-changetasks-item-aws-windows-vm.yml
+      vars:
+        snow_open_changetask: "{{ item }}"
+      with_items: "{{ result_snow_open_changetasks }}"
