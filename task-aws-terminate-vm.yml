@@ -1,1 +1,131 @@
+- name: Process [Terminate aws Instance] task
+  hosts: localhost
+  gather_facts: no
+##########################################################
+# Process the actions for change task: Terminate aws Instance
 
+##########################################################
+  tasks:
+    - name: Execute [Terminate aws Instance] task
+      block:
+        # Load initial variables
+        - name: Include global variables
+          include_vars:
+            file: variables_{{ snow_change_model_number }}.yml
+
+        # Check task state upfront, don't process it if its already closed
+        - name: Get change task state for [{{ snow_change_task_number }}]
+          include_role:
+            name: servicenow/changetask-get-fields
+          vars:
+            var_snow_change_task_number: "{{ snow_change_task_number }}"
+            var_snow_change_task_field_list: "state,assignment_group"
+            var_snow_change_task_display_value: true
+
+        - name: Extract change task values
+          set_fact:
+            temp_snow_change_task_state: "{{ result_snow_change_task_fields.state }}"
+            temp_snow_change_assignment_group: "{{ result_snow_change_task_fields.assignment_group['display_value'] }}"
+
+        - name: Process change task if it is still open
+          block:
+            # Mark task as "Work in Progress"
+            - name: Start change task
+              include_role:
+                name: servicenow/changetask-start
+              vars:
+                var_snow_change_task_number: "{{ snow_change_task_number }}"
+                var_snow_change_task_assigned_to: "{{ snow_automation_assigned_to }}"
+
+            # Check for rescue block testing trigger
+            - name: Check for rescue block trigger
+              include_role:
+                name: servicenow/changetask-get-worknotes-value-by-number
+              vars:
+                var_snow_change_task_number: "{{ snow_change_task_number }}"
+                var_snow_worknotes_key: "{{ snow_changetask_force_failure_worknotes_key }}"
+
+            - name: Trigger rescue block
+              fail: msg="Performing failure test"
+              when: (result_snow_change_task_work_notes_value | bool) == true
+
+            # Retrieve the change request description
+            - name: get change request description
+              include_role:
+                name: servicenow/changerequest-get-description
+              vars:
+                var_snow_change_request_number: "{{ snow_change_request_number }}"
+                as_json: true
+
+            # Set fact for change request description
+            - name: set snow change request facts
+              set_fact:
+                vm_instance: "{{ result_snow_change_request_description['Configuration Item'] }}"
+                instance_id: "{{ result_snow_change_request_description['Instance ID'] }}"
+                aws_account: "{{ result_snow_change_request_description['AWS Account Number'] }}"
+
+            - name: role to check the group for revamp
+              include_role:
+                name: revamp_group
+              vars:
+                assignment_group_non_revamp: "{{ snow_changetask_reassignment_group_vm_terminate }}"
+                assignment_group_revamp: "{{ snow_changetask_reassignment_group_vm_terminate_revamp }}"
+
+            # Retrieve details from the CHG
+            - name: Get change request details
+              include_role:
+                name: servicenow/changerequest-get-fields
+              vars:
+                var_snow_change_request_number: "{{ snow_change_request_number }}"
+                var_snow_change_request_field_list: "parent.number"
+
+            - name: Trigger roleTerminate aws Instance
+              include_role:
+                name: aws-terminate-vm
+              vars:
+                vm_instance_name: "{{ vm_instance }}"
+                instance_id_role: "{{ instance_id }}"
+                aws_account_id: "{{ aws_account }}"
+
+            - name: Printing result
+              debug:
+                msg: "{{ ec2  }}"
+
+            - name: Adding worknotes Terminate VM
+              include_role:
+                name: servicenow/changetask-add-worknotes
+              vars:
+                var_snow_change_task_number: "{{ snow_change_task_number }}"
+                var_snow_change_task_work_notes: "Success: [Terminate VM: {{ vm_instance }}-{{instance_id}}]"
+
+            # Close task
+            - name: Close change task
+              include_role:
+                name: servicenow/changetask-close
+              vars:
+                var_snow_change_task_number: "{{ snow_change_task_number }}"
+          when: (temp_snow_change_task_state == "Open" or temp_snow_change_task_state == "Work in Progress") and (temp_snow_change_assignment_group == snow_automation_assignment_group)
+
+      rescue:
+        - name: role to check the group for revamp
+          include_role:
+            name: revamp_group
+          vars:
+            assignment_group_non_revamp: "{{ snow_changetask_reassignment_group_vm_terminate }}"
+            assignment_group_revamp: "{{ snow_changetask_reassignment_group_vm_terminate_revamp }}"
+        - debug:
+            msg: "Task [{{ ansible_failed_task.name }}] has failed"
+          ignore_errors: yes
+        #reassign change task
+        - name: Reassign change task
+          include_role:
+            name: servicenow/changetask-reassign
+          vars:
+            var_snow_change_task_number: "{{ snow_change_task_number }}"
+            var_snow_change_task_assignment_group: "{{ final_assignment_group }}"
+            var_snow_change_task_assigned_to: ""
+            var_snow_change_task_worknote: "The automation encountered an error, so this change task is being reassigned to [{{ final_assignment_group }}] for manual handling."
+          when: snow_changetask_reassign_on_error == true
+
+        - name: Fail playbook
+          fail: msg="The playbook failed"   #throw error here to mark playbook as Failed
