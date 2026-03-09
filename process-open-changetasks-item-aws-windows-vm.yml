@@ -1,1 +1,285 @@
+#############################################################
+# Invoked by get-open-changetasks.yml
+# Invokes the proper role/playbook based on the open task
+#############################################################
+- name: Processing open task
+  debug:
+    msg: "Found change task, number=[{{ snow_open_changetask.number }}], order=[{{ snow_open_changetask.order }}], short_description=[{{ snow_open_changetask.short_description }}], change_request_number=[{{ snow_open_changetask['change_request.number'] }}]"
 
+# Task - CMDB - SLA update
+- name: Launch Task - [CMDB - SLA update]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_cmdb_sla_update }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_cmdb_sla_update
+
+#  Task - Perform final/archival backup of server and remove server from backup schedule
+- name: Launch Task - [Perform final/archival backup of server and remove server from backup schedule]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_final_backup }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_final_backup
+
+#  Task - Block events for virtual server from monitoring schedule
+- name: Launch Task - [Block events for virtual server from monitoring schedule]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_enable_monitoring_blackout }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_enable_monitoring_blackout
+
+# #  Task - Power off AWS VM instance
+# - name: Launch Task - [Power off AWS VM instance]
+#   uri:
+#     url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_vm_poweroff }}/launch/"
+#     method: POST
+#     validate_certs: no
+#     body: "{{ lookup('template', './extra_vars.json') }}"
+#     body_format: json
+#     status_code: 201, 200
+#     headers:
+#       Content-Type: application/json
+#       Authorization: "Bearer {{ aap_token }}"
+#   when: snow_open_changetask.short_description == snow_changetask_short_description_vm_poweroff
+
+#  Task - Update CMBD (standby)
+- name: Launch Task - [Update CMBD (standby)]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_update_cmdb_shut }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_update_cmdb_shut
+
+#  Task - Remove server from Scheduling system
+- name: Launch Task - [Remove server from Scheduling system]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_unregister_controlm }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_unregister_controlm
+
+#  Task - Remove server from Up2date portal
+- name: Launch Task - [Remove server from Up2date portal]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_unregister_up2date }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_unregister_up2date
+
+#  Task - Terminate AWS VM Instance
+- name: Launch Task - [Terminate AWS VM Instance]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_vm_terminate }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_vm_terminate
+
+#  Task - Remove server from Monitoring system
+- name: Launch Task - [Remove server from Monitoring system]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_unregister_monitoring }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_unregister_monitoring
+
+#  Task - Remove server accounts from Bastion
+- name: Launch Task - [Remove server accounts from Bastion]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_unregister_bastion }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_unregister_bastion
+
+#  Task - Unregister DNS and reverse DNS Entries
+- name: Launch Task - [Unregister DNS and reverse DNS Entries]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_unregister_dns }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_unregister_dns
+
+#  Task - Update CMDB (Windows Server Retired)
+- name: Launch Task - [Update CMDB (Windows Server Retired)]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_update_cmdb_retired }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_update_cmdb_retired
+
+#  Task - Active directory update after long term shutdown
+- name: Launch Task - [AD Update]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_ad_update }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_active_directory_update
+
+- name: Launch Task - [remove hostname from AD]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_windows_remove_hostname }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_change_task_short_description_remove_hostname_from_ad
+
+#  Task - Remove the Windows 2012 server hostname from Azure Arc Portal
+- name: Launch Task - [Remove the Windows 2012 server hostname from Azure Arc Portal]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_remove_azure_arc }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_remove_azure_arc
+
+#  Task - Communicate server details to requestor
+- name: Launch Task - [Communicate server details to requestor]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_communicate_to_requestor }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_communicate_to_requestor
+
+#  Task - AD update (AD update)
+- name: Launch Task - [ AD update (AD update)]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_active_directory_update }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_active_directory_update
+
+- name: Launch Task - [VMWare ENC Automation)]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_windows_enc_automation }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_change_task_short_description_enc_creation
+  
+  #  Task - To Launch the aap job for disable citrix application
+- name: Launch Task - [Kindly disable the applications/icons from Citrix end]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_disable_citrix_app }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_disable_citrix_app
+
+#  Task -  To Launch the aap job for remove the server from citrix
+- name: Launch Task - [Remove the servers from all citrix farms]
+  uri:
+    url: "https://{{ aap_host }}/api/v2/job_templates/{{ sonic_job_template_id_task_remove_citrix_app }}/launch/"
+    method: POST
+    validate_certs: no
+    body: "{{ lookup('template', './extra_vars.json') }}"
+    body_format: json
+    status_code: 201, 200
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ aap_token }}"
+  when: snow_open_changetask.short_description == snow_changetask_short_description_remove_citrix_app
