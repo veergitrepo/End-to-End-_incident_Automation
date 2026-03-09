@@ -1,1 +1,89 @@
+---
+# tasks file for aws-terminate-vm
+- name: Create OpenShift token and save to file
+  shell: |
+     cat /var/run/secrets/token/token > /tmp/my-web-identity-token.jwt
+  args:
+    creates: /tmp/my-web-identity-token.jwt
 
+- name: Verify the token file was created
+  stat:
+    path: /tmp/my-web-identity-token.jwt
+  register: token_file
+
+- name: Debug the token file status
+  debug:
+    var: token_file.stat
+  
+- name: Assume the specified role
+  shell: |
+    aws sts assume-role-with-web-identity \
+        --role-arn "arn:aws:iam::{{ aws_account_id }}:role/{{ server_role_arn }}" \
+        --role-session-name MySession \
+        --web-identity-token file:///tmp/my-web-identity-token.jwt
+  register: sts_response
+  no_log: false
+
+# - name: Set temporary AWS credentials
+#   set_fact:
+#     AWS_ACCESS_KEY_ID: "{{ (sts_response.stdout | from_json).Credentials.AccessKeyId }}"
+#     AWS_SECRET_ACCESS_KEY: "{{ (sts_response.stdout | from_json).Credentials.SecretAccessKey }}"
+#     AWS_SESSION_TOKEN: "{{ (sts_response.stdout | from_json).Credentials.SessionToken }}"
+#   no_log: true
+
+- name: Initialize environment varibles
+  set_fact:
+    ANSIBLE_LOCALHOST_WARNING: false
+
+- name: Define instance ID and regions
+  set_fact:
+    regions:
+      - "eu-west-1"
+      - "us-east-1"
+      - "ap-southeast-1"
+
+- name: Initialize found_region variable
+  set_fact:
+    found_region: ""
+
+- name: Loop through regions to find the EC2 instance
+  amazon.aws.ec2_instance_info:
+    region: "{{ item }}"
+    filters:
+      instance-id: "{{ instance_id_role }}"
+    access_key: "{{ (sts_response.stdout | from_json).Credentials.AccessKeyId }}"
+    secret_key: "{{ (sts_response.stdout | from_json).Credentials.SecretAccessKey }}"
+    session_token: "{{ (sts_response.stdout | from_json).Credentials.SessionToken }}" 
+  loop: "{{ regions }}"
+  register: ec2_info
+  # ignore_errors: yes
+
+- name: Set found_region fact if instance is found
+  set_fact:
+    found_region: "{{ item.invocation.module_args.region }}"
+  when: item.instances | length > 0
+  loop: "{{ ec2_info.results }}"
+
+- name: Debug output
+  debug:
+    msg: "The EC2 instance {{ vm_instance_name }} is found in region: {{ found_region }}"
+
+- name: Fail if instance not found
+  fail:
+    msg: "The EC2 instance {{ vm_instance_name }} was not found in any of the regions- eu-west-1, us-east-1 & ap-southeast-1"
+  when: found_region == ""
+
+- name: Terminate the EC2 instance
+  amazon.aws.ec2_instance:
+    access_key: "{{ (sts_response.stdout | from_json).Credentials.AccessKeyId }}"
+    secret_key: "{{ (sts_response.stdout | from_json).Credentials.SecretAccessKey }}"
+    session_token: "{{ (sts_response.stdout | from_json).Credentials.SessionToken }}"
+    region: "{{ found_region }}"
+    instance_ids:
+      - "{{ instance_id_role }}"
+    state: absent
+  register: ec2
+
+- name: Display instance state
+  debug:
+    var: ec2
